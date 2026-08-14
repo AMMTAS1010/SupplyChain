@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+venv/
+.venv/
+env/
+
+# Runtime output
+logs/
+*.log
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Office lock files
+~$*

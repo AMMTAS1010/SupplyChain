@@ -1,89 +1,69 @@
 # Intelligent Supply Chain Management System
 
-A comprehensive supply chain management system that combines modern AI techniques to optimize inventory management, demand forecasting, and decision-making across multiple echelons.
+A multi-echelon supply chain simulator with six AI components integrated into a single
+decision-making pipeline: a Gymnasium environment, an information-sharing network, a transformer
+demand forecaster, a fuzzy controller, a multi-objective evolutionary optimiser, and an actor-critic
+reinforcement learning policy.
 
-## Components
+Built as an undergraduate honours project (BEng Robotics, Autonomous & Interactive Systems,
+Heriot-Watt University, 2024–25).
 
-### 1. Environment (Supply Chain Simulator)
-- Multi-echelon supply chain environment
-- Realistic demand patterns and inventory dynamics
-- Service level and cost metrics
-- Built on OpenAI Gym interface
+## The problem
 
-### 2. Information Sharing Network (ISN)
-- Neural network-based information sharing across echelons
-- Reduces information distortion and bullwhip effect
-- Enhances state representation for better decision-making
-- References:
-  - Lee, H. L., Padmanabhan, V., & Whang, S. (1997). "Information distortion in a supply chain: The bullwhip effect." Management Science, 43(4), 546-558.
-  - Chen, F., Drezner, Z., Ryan, J. K., & Simchi-Levi, D. (2000). "Quantifying the bullwhip effect in a simple supply chain: The impact of forecasting, lead times, and information." Management Science, 46(3), 436-443.
+Supply chains distort information as it moves upstream. A small change in customer demand amplifies
+at each echelon until the factory sees swings several times larger than anything a customer did —
+the **bullwhip effect**. The usual responses trade against each other: hold more inventory and cost
+rises, hold less and service level falls, and neither addresses the distortion itself.
 
-### 3. Transformer-based Demand Predictor
-- State-of-the-art sequence modeling for demand forecasting
-- Attention mechanism captures long-term dependencies
-- Probabilistic output for uncertainty estimation
-- References:
-  - Vaswani, A., et al. (2017). "Attention is all you need." NeurIPS.
-  - Salinas, D., et al. (2020). "DeepAR: Probabilistic forecasting with autoregressive recurrent networks." International Journal of Forecasting, 36(3), 1181-1191.
+This project asks whether combining several techniques that each address part of the problem does
+better than any of them alone, and provides an environment to test that.
 
-### 4. Fuzzy Logic Controller
-- Rule-based decision support system
-- Expert knowledge integration
-- Handles uncertainty and imprecision
-- References:
-  - Petrovic, D., Roy, R., & Petrovic, R. (1999). "Supply chain modelling using fuzzy sets." International Journal of Production Economics, 59(1-3), 443-453.
-  - Zadeh, L. A. (1996). "Fuzzy logic = computing with words." IEEE Transactions on Fuzzy Systems, 4(2), 103-111.
+The engineering interest is less in any single component than in **making six of them cooperate**.
+Each works in isolation; getting a learned forecaster, a rule-based controller, an evolutionary
+optimiser and an RL policy to inform one decision without fighting each other is the actual problem.
 
-### 5. Multi-Objective Evolutionary Algorithm (MOEA)
-- Optimizes multiple competing objectives
-- Pareto-optimal solutions for trade-off analysis
-- Dynamic parameter adaptation
-- References:
-  - Zhang, Q., & Li, H. (2007). "MOEA/D: A multiobjective evolutionary algorithm based on decomposition." IEEE Transactions on Evolutionary Computation, 11(6), 712-731.
-  - Deb, K., & Jain, H. (2014). "An evolutionary many-objective optimization algorithm using reference-point-based nondominated sorting approach." IEEE Transactions on Evolutionary Computation, 18(4), 577-601.
+## Architecture
 
-### 6. Actor-Critic Network
-- Deep reinforcement learning for final decision-making
-- Combines value and policy learning
-- Integrates information from all components
-- References:
-  - Konda, V. R., & Tsitsiklis, J. N. (2000). "Actor-critic algorithms." NeurIPS.
-  - Lillicrap, T. P., et al. (2016). "Continuous control with deep reinforcement learning." ICLR.
+![System architecture](docs/system_architecture.png)
 
-## Installation
+Information flows through the components in order, each one enriching what the next receives:
 
-1. Clone the repository:
+| Component | Role |
+|---|---|
+| **Environment** | Multi-echelon supply chain on a Gymnasium interface — inventory dynamics, demand patterns, cost and service-level metrics |
+| **Information Sharing Network** | Propagates state between echelons to reduce information distortion before decisions are made |
+| **Transformer forecaster** | Sequence model predicting future demand, with probabilistic output so uncertainty is available downstream |
+| **Fuzzy controller** | Encodes domain heuristics as rules, handling the imprecision that point forecasts hide |
+| **MOEA/D** | Optimises the competing objectives — total cost, service level, bullwhip — producing Pareto-optimal parameter sets rather than one compromise |
+| **Actor-critic policy** | Takes the enriched state, forecast, and recommendations, and makes the ordering decision |
+
+Detailed write-ups for each component are in [`docs/`](docs/), including the integration notes for
+the transformer/ISN boundary and the fuzzy controller revisions.
+
+## Quickstart
+
 ```bash
-git clone https://github.com/yourusername/new_supply_chain.git
-cd new_supply_chain
-```
+git clone https://github.com/AMMTAS1010/SupplyChain.git
+cd SupplyChain
 
-2. Create and activate a virtual environment:
-```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
+source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Usage
+Conda users can use `environment.yml` instead.
 
-1. Basic usage:
+Run the integrated system:
+
 ```python
 from main import SupplyChainSystem, SystemConfig
 
-# Initialize system with default configuration
-config = SystemConfig()
-system = SupplyChainSystem(config)
-
-# Train the system
+system = SupplyChainSystem(SystemConfig())
 system.train(n_episodes=1000)
 ```
 
-2. Custom configuration:
+With a custom configuration:
+
 ```python
 config = SystemConfig(
     n_echelons=4,
@@ -93,62 +73,97 @@ config = SystemConfig(
     n_heads=4,
     n_layers=3,
     dropout=0.1,
-    learning_rate=1e-4
+    learning_rate=1e-4,
 )
 system = SupplyChainSystem(config)
 ```
 
-3. Running tests:
+Individual components can be trained on their own via [`scripts/`](scripts/):
+
+```bash
+python scripts/train_transformer.py
+python scripts/train_actor_critic.py
+```
+
+A pre-trained forecaster is included as `transformer_model.pt`.
+
+## Tests
+
 ```bash
 pytest -v
 ```
 
-## Project Structure
+Environment tests cover the reset and step contract, inventory and backlog accounting, cost
+computation and the observation space.
+
+## Project structure
 
 ```
-new_supply_chain/
-├── docs/                    # Documentation
-│   ├── architecture.md      # System architecture
-│   ├── actor_critic/        # Actor-critic documentation
-│   ├── demand_prediction/   # Demand prediction documentation
-│   ├── fuzzy_controller/    # Fuzzy controller documentation
-│   ├── information_sharing/ # ISN documentation
-│   ├── moea/               # MOEA documentation
-│   └── research_documentation/ # Research papers and references
-├── src/                     # Source code
-│   ├── environment/         # Supply chain environment
-│   └── models/             # AI/ML models
-├── tests/                   # Test cases
-├── main.py                 # Main script
-├── requirements.txt        # Dependencies
-└── README.md              # This file
+├── config/                     # Configuration dataclasses per component
+│   ├── information_sharing_config.py
+│   └── transformer_config.py
+├── docs/                       # Architecture and per-component write-ups
+│   ├── architecture.md
+│   ├── system_architecture.png
+│   ├── information_sharing_network.md
+│   ├── transformer_isn_integration.md
+│   ├── fuzzy_controller_updates.md
+│   └── research_documentation.md
+├── results/                    # Training-run telemetry (JSON)
+├── scripts/                    # Standalone component training
+├── src/
+│   ├── environment/            # Gymnasium supply chain simulator
+│   ├── models/
+│   │   ├── information_sharing/
+│   │   ├── transformer/
+│   │   ├── fuzzy/
+│   │   ├── moea/
+│   │   └── actor_critic/
+│   └── utils/                  # Metrics, time features
+├── tests/
+├── main.py                     # Integrated system entry point
+├── requirements.txt
+└── environment.yml
 ```
 
-## Contributing
+`results/` contains JSON telemetry captured during training runs — episode reward, service level,
+bullwhip measure and per-network losses. They are run records, not benchmark results.
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+## Theoretical basis
 
-## License
+Each component implements a documented approach rather than an ad-hoc design.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+**Bullwhip effect and information sharing**
+- Lee, H. L., Padmanabhan, V., & Whang, S. (1997). Information distortion in a supply chain: the bullwhip effect. *Management Science*, 43(4), 546–558.
+- Chen, F., Drezner, Z., Ryan, J. K., & Simchi-Levi, D. (2000). Quantifying the bullwhip effect in a simple supply chain. *Management Science*, 46(3), 436–443.
+
+**Demand forecasting**
+- Vaswani, A., et al. (2017). Attention is all you need. *NeurIPS*.
+- Salinas, D., et al. (2020). DeepAR: probabilistic forecasting with autoregressive recurrent networks. *International Journal of Forecasting*, 36(3), 1181–1191.
+
+**Fuzzy control**
+- Petrovic, D., Roy, R., & Petrovic, R. (1999). Supply chain modelling using fuzzy sets. *International Journal of Production Economics*, 59(1–3), 443–453.
+- Zadeh, L. A. (1996). Fuzzy logic = computing with words. *IEEE Transactions on Fuzzy Systems*, 4(2), 103–111.
+
+**Multi-objective optimisation**
+- Zhang, Q., & Li, H. (2007). MOEA/D: a multiobjective evolutionary algorithm based on decomposition. *IEEE Transactions on Evolutionary Computation*, 11(6), 712–731.
+- Deb, K., & Jain, H. (2014). An evolutionary many-objective optimization algorithm using reference-point-based nondominated sorting. *IEEE Transactions on Evolutionary Computation*, 18(4), 577–601.
+
+**Reinforcement learning**
+- Konda, V. R., & Tsitsiklis, J. N. (2000). Actor-critic algorithms. *NeurIPS*.
+- Lillicrap, T. P., et al. (2016). Continuous control with deep reinforcement learning. *ICLR*.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
 
 ## Citation
 
-If you use this code in your research, please cite:
-
 ```bibtex
-@software{supply_chain_ai_2025,
-  title={Intelligent Supply Chain Management System},
-  author={Your Name},
-  year={2025},
-  url={https://github.com/yourusername/new_supply_chain}
+@software{alshaqra_supply_chain_2025,
+  title  = {Intelligent Supply Chain Management System},
+  author = {Alshaqra, Abdallah},
+  year   = {2025},
+  url    = {https://github.com/AMMTAS1010/SupplyChain}
 }
 ```
-
-## References
-
-See individual component documentation in the `docs/` directory for detailed references and theoretical foundations.
